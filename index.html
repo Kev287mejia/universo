@@ -7,6 +7,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@200;300;400;600&family=Cormorant+Garamond:ital,wght@1,300&display=swap" rel="stylesheet">
     
     <style>
+        #trail-canvas {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: 150; pointer-events: none; /* Encima de todo pero no bloquea clics */
+        }
+        
         :root {
             --primary: #ffb3c6;
             --secondary: #ff809f;
@@ -82,13 +87,17 @@
             font-weight: 300; margin-bottom: 35px; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,0.5);
         }
 
-        #btn-close {
+        .card-buttons {
+            display: flex; justify-content: center; gap: 15px; margin-top: 15px;
+        }
+
+        .btn-action {
             background: transparent; border: 1px solid rgba(255,255,255,0.3); color: rgba(255,255,255,0.8);
-            padding: 10px 30px; border-radius: 30px; cursor: pointer; font-family: 'Montserrat', sans-serif;
+            padding: 10px 20px; border-radius: 30px; cursor: pointer; font-family: 'Montserrat', sans-serif;
             font-size: 0.8rem; letter-spacing: 2px; transition: 0.4s; font-weight: 300;
         }
 
-        #btn-close:hover { background: rgba(255,255,255,0.05); border-color: #fff; color: #fff; box-shadow: 0 0 15px rgba(255,255,255,0.2); }
+        .btn-action:hover { background: rgba(255,255,255,0.05); border-color: #fff; color: #fff; box-shadow: 0 0 15px rgba(255,255,255,0.2); }
 
         /* Crosshair / Indicador de interacción */
         #crosshair {
@@ -99,6 +108,7 @@
         #crosshair.active { background: rgba(255,255,255,1); box-shadow: 0 0 15px var(--primary); transform: translate(-50%, -50%) scale(2); }
     </style>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <script type="importmap">
         {
             "imports": {
@@ -109,9 +119,10 @@
     </script>
 </head>
 <body>
+    <canvas id="trail-canvas"></canvas>
 
     <div id="intro-screen">
-        <h1>NUESTRO UNIVERSO</h1>
+        <h1 id="main-title">NUESTRO UNIVERSO</h1>
         <p id="error-msg">⚠️ Si ves esto negro y no avanza al darle Explorar, es porque abriste el archivo con doble clic. Debes usar "Live Server" o un servidor local.</p>
         <button id="btn-enter">EXPLORAR</button>
     </div>
@@ -122,7 +133,9 @@
         <div id="card-icon">✨</div>
         <div id="card-title">Lo que me gusta de ti</div>
         <p id="card-text">Mensaje</p>
-        <button id="btn-close">CERRAR</button>
+        <div class="card-buttons">
+            <button id="btn-close" class="btn-action">CERRAR</button>
+        </div>
     </div>
 
     <div id="canvas-container"></div>
@@ -137,10 +150,59 @@
         // Evitar que el mensaje de error aparezca si el script carga bien
         document.getElementById('error-msg').style.display = 'none';
 
+        // --- OPCIÓN 6: Personalización del Nombre ---
+        const urlParams = new URLSearchParams(window.location.search);
+        const paramNombre = urlParams.get('nombre');
+        const defaultTitle = "EL UNIVERSO DE GARDENIA Y KEVIN";
+        const titleText = paramNombre ? `EL UNIVERSO DE ${paramNombre.toUpperCase()}` : defaultTitle;
+        document.getElementById('main-title').innerText = titleText;
+        document.title = titleText;
+
+        // --- OPCIÓN 3: Estela Mágica en el Cursor ---
+        const trailCanvas = document.getElementById('trail-canvas');
+        const trailCtx = trailCanvas.getContext('2d');
+        trailCanvas.width = window.innerWidth; trailCanvas.height = window.innerHeight;
+        let trailParticles = [];
+        
+        window.addEventListener('mousemove', (e) => {
+            for(let i=0; i<3; i++) {
+                trailParticles.push({
+                    x: e.clientX, y: e.clientY,
+                    vx: (Math.random()-0.5)*1.5, vy: (Math.random()-0.5)*1.5,
+                    life: 1, size: Math.random()*2 + 1,
+                    color: Math.random() > 0.5 ? '#ffb3c6' : '#ffffff'
+                });
+            }
+        });
+        
+        function animateTrail() {
+            trailCtx.clearRect(0, 0, trailCanvas.width, trailCanvas.height);
+            for(let i=0; i<trailParticles.length; i++) {
+                let p = trailParticles[i];
+                trailCtx.fillStyle = p.color;
+                trailCtx.globalAlpha = p.life;
+                trailCtx.beginPath();
+                trailCtx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+                trailCtx.fill();
+                p.x += p.vx; p.y += p.vy; p.life -= 0.02;
+            }
+            trailParticles = trailParticles.filter(p => p.life > 0);
+            requestAnimationFrame(animateTrail);
+        }
+        animateTrail();
+
         // ==========================================
         // ⚙️ BASE DE DATOS EMOCIONAL (80 ELEMENTOS)
         // ==========================================
-        const emojisPosibles = ['❤️', '💕', '💖', '💗', '💓', '💞', '✨', '🌹', '🌸', '🫶', '💫', '♡', '🦋', '🌷', '🌟', '💌'];
+        const svgsPosibles = [
+            "M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z", // Corazón
+            "M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z", // Estrella
+            "M12 2l2.5 7.5L22 12l-7.5 2.5L12 22l-2.5-7.5L2 12l7.5-2.5L12 2z", // Destello mágico
+            "M12 3a9 9 0 109 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 01-4.4 2.26 5.403 5.403 0 01-3.14-9.8c-.44-.06-.9-.1-1.36-.1z", // Luna
+            "M12 2c-5.33 4.55-8 8.48-8 11.8 0 4.98 3.8 8.2 8 8.2s8-3.22 8-8.2c0-3.32-2.67-7.25-8-11.8z", // Gota / Pétalo
+            "M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z", // Música
+            "M12 2L2 12l10 10 10-10L12 2z" // Rombo
+        ];
         const paletaColores = ['#ffb3c6', '#ff809f', '#ffd1dc', '#ffffff', '#ff99b3'];
 
         const frases = [
@@ -165,7 +227,7 @@
         const interactiveData = frases.map((frase, i) => {
             return {
                 id: i,
-                emoji: emojisPosibles[Math.floor(Math.random() * emojisPosibles.length)],
+                svg: svgsPosibles[Math.floor(Math.random() * svgsPosibles.length)],
                 color: paletaColores[Math.floor(Math.random() * paletaColores.length)],
                 title: frase,
                 card: "Eres la pieza que le faltaba a mi universo. " + frase + " es algo que atesoro profundamente." 
@@ -180,9 +242,11 @@
         const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 2000);
         camera.position.set(0, 40, 120);
 
+        const isMobile = window.innerWidth <= 768;
+
         const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setPixelRatio(isMobile ? 1 : Math.min(window.devicePixelRatio, 2)); // Menos carga en móviles
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = 1.2;
         container.appendChild(renderer.domElement);
@@ -196,15 +260,16 @@
         const renderScene = new RenderPass(scene, camera);
         const bloomPass = new UnrealBloomPass(
             new THREE.Vector2(window.innerWidth, window.innerHeight),
-            2.0, 0.8, 0.1 // Intensidad moderada para no cegar los emojis
+            isMobile ? 1.0 : 2.0, 0.8, 0.1 // Menos brillo en móvil para mejor rendimiento
         );
         const composer = new EffectComposer(renderer);
         composer.addPass(renderScene); composer.addPass(bloomPass);
 
-        // Agujero Negro y Halo
+        // Agujero Negro y Halo (OPCIÓN 5: Mensaje Secreto)
         const bhGeometry = new THREE.SphereGeometry(12, 64, 64);
         const bhMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
         const blackHole = new THREE.Mesh(bhGeometry, bhMaterial);
+        blackHole.userData = { isBlackHole: true };
         scene.add(blackHole);
 
         // Disco de Acreción (GLSL)
@@ -232,8 +297,9 @@
         scene.add(accretionDisk);
 
         // Estrellas de fondo
-        const starGeo = new THREE.BufferGeometry(); const starPos = new Float32Array(15000 * 3);
-        for(let i = 0; i < 15000; i++) {
+        const starCount = isMobile ? 5000 : 15000; // Menos estrellas en móviles
+        const starGeo = new THREE.BufferGeometry(); const starPos = new Float32Array(starCount * 3);
+        for(let i = 0; i < starCount; i++) {
             const r = 25 + Math.pow(Math.random(), 2) * 250; const theta = Math.random() * 2 * Math.PI; const phi = Math.acos((Math.random() * 2 - 1) * 0.1); 
             starPos[i*3] = r * Math.sin(phi) * Math.cos(theta); starPos[i*3+1] = r * Math.cos(phi) * (Math.random() * 0.6); starPos[i*3+2] = r * Math.sin(phi) * Math.sin(theta);
         }
@@ -242,44 +308,45 @@
         const stars = new THREE.Points(starGeo, starMat); scene.add(stars);
 
         // ==========================================
-        // 💖 CONVERTIR EMOJIS EN HOLOGRAMAS LEGIBLES (NUEVO MÉTODO)
+        // 💖 CONVERTIR SVG EN HOLOGRAMAS MINIMALISTAS (NUEVO MÉTODO)
         // ==========================================
         const interactiveSprites = [];
 
-        function createEmojiHologramSprite(emojiText, colorHex) {
-            // Alta resolución para evitar pixelado
+        function createSvgHologramSprite(svgPath, colorHex) {
             const canvas = document.createElement('canvas');
             canvas.width = 512; canvas.height = 512;
             const ctx = canvas.getContext('2d');
 
-            // 1. Dibujar un "aura" holográfica brillante por detrás
-            const gradient = ctx.createRadialGradient(256, 256, 30, 256, 256, 220);
-            gradient.addColorStop(0, colorHex); // Color sólido al centro
-            gradient.addColorStop(0.5, colorHex + '66'); // Semi transparente
-            gradient.addColorStop(1, 'rgba(0,0,0,0)'); // Borde invisible
+            // 1. Aura holográfica
+            const gradient = ctx.createRadialGradient(256, 256, 40, 256, 256, 200);
+            gradient.addColorStop(0, colorHex); 
+            gradient.addColorStop(0.5, colorHex + '66'); 
+            gradient.addColorStop(1, 'rgba(0,0,0,0)'); 
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, 512, 512);
 
-            // 2. Dibujar el Emoji en el centro para que se vea perfectamente
-            ctx.font = '160px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.shadowColor = 'rgba(255, 255, 255, 0.8)'; // Pequeña sombra para dar relieve
-            ctx.shadowBlur = 20;
-            
-            // Llenado (aunque es un emoji, algunos navegadores necesitan esto)
-            ctx.fillStyle = '#ffffff'; 
-            ctx.fillText(emojiText, 256, 275); 
+            // 2. Dibujar SVG usando Path2D
+            ctx.save();
+            ctx.translate(256, 256); 
+            ctx.scale(12, 12); // Escalar icono de 24x24
+            ctx.translate(-12, -12); // Centrar
 
-            // Crear Textura
-            const texture = new THREE.CanvasTexture(canvas);
-            texture.colorSpace = THREE.SRGBColorSpace; // CRÍTICO: Mantiene los colores vivos
+            ctx.shadowColor = '#ffffff';
+            ctx.shadowBlur = 10;
+            ctx.fillStyle = '#ffffff'; 
             
-            // Usar NormalBlending para que el Emoji no pierda sus colores originales
+            const p = new Path2D(svgPath);
+            ctx.fill(p);
+            ctx.restore();
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.colorSpace = THREE.SRGBColorSpace; 
+            
+            // Usar AdditiveBlending para que brille más como luz
             const material = new THREE.SpriteMaterial({ 
                 map: texture, 
                 transparent: true, 
-                blending: THREE.NormalBlending, 
+                blending: THREE.AdditiveBlending, 
                 depthWrite: false
             });
 
@@ -288,19 +355,44 @@
             return sprite;
         }
 
-        // Crear los 80 emojis en el espacio
+        // --- OPCIÓN 4: Constelación en forma de Corazón ---
+        const heartPoints = new Float32Array(15 * 3);
+        const heartGeo = new THREE.BufferGeometry();
+        heartGeo.setAttribute('position', new THREE.BufferAttribute(heartPoints, 3));
+        const heartMat = new THREE.LineBasicMaterial({ color: 0xff809f, transparent: true, opacity: 0.6, linewidth: 2 });
+        const heartConstellation = new THREE.LineLoop(heartGeo, heartMat);
+        scene.add(heartConstellation);
+
+        // Crear los 80 iconos en el espacio
         interactiveData.forEach((data, index) => {
-            const sprite = createEmojiHologramSprite(data.emoji, data.color);
-            
-            const angle = (index / interactiveData.length) * Math.PI * 4 + Math.random(); 
-            const distance = 40 + (Math.random() * 100); 
-            const height = (Math.random() - 0.5) * 60;
+            const sprite = createSvgHologramSprite(data.svg, data.color);
+            let angle, distance, height, speed, bobSpeed;
+            let isHeart = false;
+
+            if (index < 15) {
+                // Primeros 15 forman el corazón
+                isHeart = true;
+                const t = (index / 15) * Math.PI * 2;
+                const x = 16 * Math.pow(Math.sin(t), 3) * 3;
+                const z = -(13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t)) * 3;
+                distance = Math.sqrt(x*x + z*z);
+                angle = Math.atan2(z, x); 
+                height = 25; // Flotando juntos
+                speed = 0.003; // Todos giran a la misma velocidad para no romper el corazón
+                bobSpeed = 2;
+            } else {
+                angle = (index / interactiveData.length) * Math.PI * 4 + Math.random(); 
+                distance = 45 + (Math.random() * 100); 
+                height = (Math.random() - 0.5) * 60;
+                speed = 0.001 + Math.random() * 0.002;
+                bobSpeed = 1 + Math.random() * 2;
+            }
             
             sprite.position.set(Math.cos(angle) * distance, height, Math.sin(angle) * distance);
 
             sprite.userData = {
                 data: data, angle: angle, distance: distance, baseY: height,
-                speed: 0.001 + Math.random() * 0.002, bobSpeed: 1 + Math.random() * 2, originalScale: 16
+                speed: speed, bobSpeed: bobSpeed, originalScale: 16, isHeart: isHeart
             };
 
             scene.add(sprite);
@@ -313,34 +405,118 @@
         const crosshair = document.getElementById('crosshair');
         const cardModal = document.getElementById('message-card');
         
+        let isPaused = false;
+        let originalCamPos = new THREE.Vector3();
+
+        // Máquina de escribir
+        let typewriterTimeout;
+        function typeWriterEffect(element, text, speed = 40) {
+            element.innerHTML = "";
+            let i = 0;
+            clearTimeout(typewriterTimeout);
+            function type() {
+                if (i < text.length) {
+                    element.innerHTML += text.charAt(i);
+                    i++;
+                    typewriterTimeout = setTimeout(type, speed);
+                }
+            }
+            type();
+        }
+
         window.addEventListener('mousemove', (event) => {
             mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
             mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
         });
 
         window.addEventListener('click', () => {
-            if (cardModal.classList.contains('active')) return;
+            if (cardModal.classList.contains('active') || isPaused) return;
             raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(interactiveSprites);
+            
+            // Incluir el agujero negro en la intersección
+            const interactables = [...interactiveSprites, blackHole];
+            const intersects = raycaster.intersectObjects(interactables);
 
             if (intersects.length > 0) {
-                const sprite = intersects[0].object;
+                const clickedObj = intersects[0].object;
+                
+                // --- OPCIÓN 5: Huevo de Pascua en el Agujero Negro ---
+                if (clickedObj.userData.isBlackHole) {
+                    isPaused = true; controls.autoRotate = false;
+                    originalCamPos.copy(camera.position);
+                    
+                    gsap.to(camera.position, { x: 0, y: 15, z: 45, duration: 2, ease: "power3.inOut" });
+                    gsap.to(controls.target, { x: 0, y: 0, z: 0, duration: 2, ease: "power3.inOut" });
+                    
+                    setTimeout(() => {
+                        const infinitySvg = "M18.6 6.62c-1.44 0-2.8.56-3.77 1.53L12 10.66 10.48 12h.01L7.8 14.39c-.64.64-1.49.99-2.4.99-1.87 0-3.39-1.51-3.39-3.38S3.53 8.62 5.4 8.62c.91 0 1.76.35 2.44 1.03l1.13 1 1.51-1.34L9.22 8.2C8.2 7.18 6.84 6.62 5.4 6.62 2.42 6.62 0 9.04 0 12s2.42 5.38 5.4 5.38c1.44 0 2.8-.56 3.77-1.53l2.83-2.5.01.01L13.52 12h-.01l2.69-2.39c.64-.64 1.49-.99 2.4-.99 1.87 0 3.39 1.51 3.39 3.38s-1.52 3.38-3.39 3.38c-.9 0-1.76-.35-2.44-1.03l-1.14-1.01-1.51 1.34 1.27 1.12c1.02 1.01 2.37 1.57 3.82 1.57 2.98 0 5.4-2.41 5.4-5.38s-2.42-5.37-5.4-5.37z";
+                        document.getElementById('card-icon').innerHTML = `<svg viewBox="0 0 24 24" width="60" height="60" fill="#ffffff"><path d="${infinitySvg}"/></svg>`;
+                        document.getElementById('card-icon').style.filter = `drop-shadow(0 0 20px #ffffff)`;
+                        document.getElementById('card-title').innerText = 'EL CENTRO DEL UNIVERSO';
+                        
+                        const secretText = "Gardenia, pase lo que pase, incluso en la inmensidad del espacio o en el centro de un agujero negro donde el tiempo se detiene, mi lugar favorito siempre será a tu lado. Con cariño, Kevin.";
+                        cardModal.classList.add('active');
+                        typeWriterEffect(document.getElementById('card-text'), secretText);
+                    }, 1000);
+                    return;
+                }
+
+                const sprite = clickedObj;
                 const data = sprite.userData.data;
                 
+                // Pausar movimiento orbital
+                isPaused = true;
+                controls.autoRotate = false;
+
+                // Animación de cámara con GSAP hacia el emoji
+                originalCamPos.copy(camera.position);
+                const direction = sprite.position.clone().normalize();
+                const targetCamPos = sprite.position.clone().add(direction.multiplyScalar(35));
+                targetCamPos.y += 5; // Un poco más arriba
+
+                gsap.to(camera.position, {
+                    x: targetCamPos.x, y: targetCamPos.y, z: targetCamPos.z,
+                    duration: 1.5, ease: "power3.inOut"
+                });
+                
+                gsap.to(controls.target, {
+                    x: sprite.position.x, y: sprite.position.y, z: sprite.position.z,
+                    duration: 1.5, ease: "power3.inOut"
+                });
+
                 // Efecto de "latido" al hacer clic
                 sprite.scale.set(24, 24, 1);
                 setTimeout(() => sprite.scale.set(16, 16, 1), 300);
 
-                // Mostrar tarjeta
-                document.getElementById('card-icon').innerText = data.emoji;
-                document.getElementById('card-icon').style.textShadow = `0 0 20px ${data.color}`;
-                document.getElementById('card-title').innerText = data.title;
-                document.getElementById('card-text').innerText = data.card;
-                cardModal.classList.add('active');
+                // Mostrar tarjeta después de que la cámara empiece a acercarse
+                setTimeout(() => {
+                    document.getElementById('card-icon').innerHTML = `<svg viewBox="0 0 24 24" width="60" height="60" fill="#ffffff"><path d="${data.svg}"/></svg>`;
+                    document.getElementById('card-icon').style.filter = `drop-shadow(0 0 20px ${data.color})`;
+                    document.getElementById('card-title').innerText = data.title;
+                    
+                    cardModal.classList.add('active');
+                    typeWriterEffect(document.getElementById('card-text'), data.card);
+                }, 800);
             }
         });
 
-        document.getElementById('btn-close').addEventListener('click', () => cardModal.classList.remove('active'));
+        document.getElementById('btn-close').addEventListener('click', () => {
+            cardModal.classList.remove('active');
+            
+            // Regresar la cámara a su lugar
+            gsap.to(camera.position, {
+                x: originalCamPos.x, y: originalCamPos.y, z: originalCamPos.z,
+                duration: 1.5, ease: "power3.inOut"
+            });
+            gsap.to(controls.target, {
+                x: 0, y: 0, z: 0,
+                duration: 1.5, ease: "power3.inOut",
+                onComplete: () => {
+                    isPaused = false;
+                    controls.autoRotate = true;
+                }
+            });
+        });
 
         const clock = new THREE.Clock();
 
@@ -350,20 +526,40 @@
 
             controls.update();
             diskShaderMaterial.uniforms.time.value = elapsedTime;
-            stars.rotation.y = elapsedTime * 0.005;
+            
+            if (!isPaused) {
+                stars.rotation.y = elapsedTime * 0.005;
+            }
 
-            // Animar Sprites
+            // Animar Sprites y Constelación
+            const positions = heartConstellation.geometry.attributes.position.array;
+            let heartIdx = 0;
+
             interactiveSprites.forEach((sprite) => {
                 const ud = sprite.userData;
-                ud.angle += ud.speed;
+                if (!isPaused) {
+                    ud.angle += ud.speed;
+                }
+                
                 sprite.position.x = Math.cos(ud.angle) * ud.distance;
                 sprite.position.z = Math.sin(ud.angle) * ud.distance;
-                sprite.position.y = ud.baseY + Math.sin(elapsedTime * ud.bobSpeed + ud.angle) * 3;
+                
+                if (ud.isHeart) {
+                    // Moverse todos juntos como grupo
+                    sprite.position.y = ud.baseY + Math.sin(elapsedTime * ud.bobSpeed) * 3;
+                    positions[heartIdx * 3] = sprite.position.x;
+                    positions[heartIdx * 3 + 1] = sprite.position.y;
+                    positions[heartIdx * 3 + 2] = sprite.position.z;
+                    heartIdx++;
+                } else {
+                    sprite.position.y = ud.baseY + Math.sin(elapsedTime * ud.bobSpeed + ud.angle) * 3;
+                }
                 
                 // Pulsación luminosa sutil
                 const pulse = ud.originalScale + Math.sin(elapsedTime * 3 + ud.angle) * 1.5;
-                if(sprite.scale.x < 20) sprite.scale.set(pulse, pulse, 1); // No sobreescribir el click
+                if(sprite.scale.x < 20) sprite.scale.set(pulse, pulse, 1); 
             });
+            heartConstellation.geometry.attributes.position.needsUpdate = true;
 
             // Hover effects
             raycaster.setFromCamera(mouse, camera);
@@ -380,6 +576,7 @@
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight); composer.setSize(window.innerWidth, window.innerHeight);
+            if(trailCanvas) { trailCanvas.width = window.innerWidth; trailCanvas.height = window.innerHeight; }
         });
 
         document.getElementById('btn-enter').addEventListener('click', () => {
