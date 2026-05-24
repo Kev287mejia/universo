@@ -579,7 +579,15 @@
             if(trailCanvas) { trailCanvas.width = window.innerWidth; trailCanvas.height = window.innerHeight; }
         });
 
+        // --- OPCIÓN MUSICAL: Ambient Espacial ---
+        const bgMusic = new Audio("https://archive.org/download/jamendo-449061/01-1871951-Sound%20Creator-Calm%20Space%20Ambient.mp3");
+        bgMusic.loop = true;
+        bgMusic.volume = 0.4; // Volumen suave, estilo cinematográfico
+
         document.getElementById('btn-enter').addEventListener('click', () => {
+            // Iniciar música
+            bgMusic.play().catch(e => console.log("Audio play failed:", e));
+
             const intro = document.getElementById('intro-screen'); intro.style.opacity = 0;
             setTimeout(() => intro.style.display = 'none', 2500);
             
